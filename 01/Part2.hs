@@ -1,9 +1,9 @@
 import Day1
 
 main = do
-  s <- getLine
-  let d = read s :: Integer
-  let ds = toDigits d
-  let l = length ds
-  let hl = l `div` 2
-  print (sumEqualDigitsN ds hl 0)
+  string <- getLine
+  let number = read string :: Integer
+  let digits = toDigits number
+  let size = length digits
+  let halfSize = size `div` 2
+  print (sumEqualDigitsN digits halfSize 0)

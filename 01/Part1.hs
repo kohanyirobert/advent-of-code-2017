@@ -1,7 +1,7 @@
 import Day1
 
 main = do
-  s <- getLine
-  let d = read s :: Integer
-  let ds = toDigits d
-  print (sumEqualDigitsN ds 1 0)
+  string <- getLine
+  let number = read string :: Integer
+  let digits = toDigits number
+  print (sumEqualDigitsN digits 1 0)
