@@ -6,7 +6,5 @@ getTable string = table
         rows = map words cells
         table = map (map read) rows
 
-getChecksum :: [[Int]] -> Int
-getChecksum table = sum (map calculate table)
-  where calculate :: [Int] -> Int
-        calculate row = abs (minimum row - maximum row)
+getChecksum :: [[Int]] -> ([Int] -> Int) -> Int
+getChecksum table rowMapper = sum (map rowMapper table)
