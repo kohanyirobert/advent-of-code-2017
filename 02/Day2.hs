@@ -1,10 +1,7 @@
 module Day2 where
 
 getTable :: String -> [[Int]]
-getTable string = table
-  where cells = lines string
-        rows = map words cells
-        table = map (map read) rows
+getTable string = map (map read) $ map words $ lines string
 
 getChecksum :: [[Int]] -> ([Int] -> Int) -> Int
 getChecksum table rowMapper = sum (map rowMapper table)
