@@ -1,26 +1,54 @@
 import Day3
 
-directions :: [(Int, Int) -> (Int, Int)]
+import Data.Maybe
+
+type Value = Int
+type Storage = (Square, Value)
+type Fragment = (Coordinate, Storage)
+
+directions :: [Coordinate -> Coordinate]
 directions = [toRight, toUp, toLeft, toDown]
 
-getCoords' :: Int -> Int -> Int -> (Int, Int) -> Int -> [((Int, Int), Int)]
-getCoords' n size curr coord step
-  | n == curr = [(coord, curr)]
-  | otherwise = (coord, curr) : getCoords' n size (curr + 1) (direction coord) (step + 1)
-  where nextSize = round (sqrt (fromIntegral (step + 1))) -- https://oeis.org/A000194
+toUpperLeft = toUp . toLeft
+toUpperRight = toUp . toRight
+toLowerLeft = toDown . toLeft
+toLowerRight = toDown . toRight
+
+neighbors :: [Coordinate -> Coordinate]
+neighbors = [toRight, toUpperRight, toUp, toUpperLeft, toLeft, toLowerLeft, toDown, toLowerRight]
+
+sumAdjacentStorages :: [Fragment] -> Coordinate -> Int
+sumAdjacentStorages fragments coord = result
+  where neighborFragments = map (\f -> lookup (f coord) fragments) neighbors
+        result = foldl (\b a -> let (_, s) = (fromMaybe (0,0) a) in s + b) 0 neighborFragments
+
+getFragments' :: [Fragment] -> Int -> Fragment -> Int -> [Fragment]
+getFragments' fragments n fragment@(coord, (square, storage)) step
+  | n <= storage = fragment : fragments
+  | otherwise = getFragments' (fragment : fragments) n nextFragment nextStep
+  where nextStep = step + 1
+        nextSize = round (sqrt (fromIntegral nextStep)) -- https://oeis.org/A000194
         offset = nextSize - 1
         index = ((step `div` nextSize) + offset) `mod` (length directions)
         direction = directions !! index
+        newCoord = direction coord
+        newValue = square + 1
+        newStorage = storage + (sumAdjacentStorages fragments newCoord)
+        nextFragment = (newCoord, (newValue, newStorage))
 
-getCoords :: Int -> [((Int, Int), Int)]
-getCoords n = getCoords' n size 1 origin 0
+getFragments :: Int -> [Fragment]
+getFragments n = getFragments' [] n originFragment 0
   where square = nextOddPerfectSquare n
         root = floor (sqrt (fromIntegral square))
         size = root - 1
         halfSize = size `div` 2
-        origin = (halfSize, halfSize)
+        originCoordinate = (halfSize, halfSize)
+        originStorage = (1, 1)
+        originFragment = (originCoordinate, originStorage)
 
 main = do
   string <- getLine
   let number = read string :: Int
-  print (getCoords number)
+  let fragments = getFragments number
+  let (_, (_, storage)) = head fragments
+  print storage
