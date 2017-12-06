@@ -39,7 +39,7 @@ redistributeBanks banks = distributeBank position banks
 countRedistributionCycles' :: States -> Banks -> Cycle
 countRedistributionCycles' states banks
   | banks `elem` states = 0
-countRedistributionCycles' states banks = 1 + countRedistributionCycles' nextStates nextBanks
+  | otherwise = 1 + countRedistributionCycles' nextStates nextBanks
   where nextStates = Set.insert banks states
         nextBanks = redistributeBanks banks
 
