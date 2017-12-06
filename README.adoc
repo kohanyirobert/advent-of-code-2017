@@ -11,6 +11,6 @@ or
 
 ```
 cd 01
-ghc Part1.hs
+ghc Part1
 ./Part1 < input.txt
 ```
