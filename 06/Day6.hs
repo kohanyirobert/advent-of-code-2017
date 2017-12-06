@@ -36,12 +36,12 @@ redistributeBanks :: Banks -> Banks
 redistributeBanks banks = distributeBank position banks
   where position = findBank banks
 
-redistributeBanks' :: States -> Banks -> Cycle
-redistributeBanks' states banks
+countRedistributionCycles' :: States -> Banks -> Cycle
+countRedistributionCycles' states banks
   | banks `elem` states = 0
-redistributeBanks' states banks = 1 + redistributeBanks' nextStates nextBanks
+countRedistributionCycles' states banks = 1 + countRedistributionCycles' nextStates nextBanks
   where nextStates = Set.insert banks states
         nextBanks = redistributeBanks banks
 
-redistributeBanks'' :: Banks -> Cycle
-redistributeBanks'' banks = redistributeBanks' Set.empty banks
+countRedistributionCycles :: Banks -> Cycle
+countRedistributionCycles banks = countRedistributionCycles' Set.empty banks
