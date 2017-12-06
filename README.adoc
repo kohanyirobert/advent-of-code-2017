@@ -1,17 +1,17 @@
 = Advent of Code 2017
 
-Run solutions like
+Run solutions with [stack] like
 
 ```
 cd 01
-[stack] exec -- runghc Part1 < input.txt
+stack exec -- runghc Part1 < input.txt
 ```
 
 or
 
 ```
 cd 01
-[stack] exec -- ghc Part1
+stack exec -- ghc Part1
 ./Part1 < input.txt
 ```
 
