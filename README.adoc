@@ -4,13 +4,15 @@ Run solutions like
 
 ```
 cd 01
-stack exec -- runghc Part1 < input.txt
+[stack] exec -- runghc Part1 < input.txt
 ```
 
 or
 
 ```
 cd 01
-stack exec -- ghc Part1
+[stack] exec -- ghc Part1
 ./Part1 < input.txt
 ```
+
+[stack]: https://haskellstack.org
