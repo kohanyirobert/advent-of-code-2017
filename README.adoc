@@ -1,6 +1,6 @@
 = Advent of Code 2017
 
-Run solutions with [stack] like
+Run solutions with https://haskellstack.org[stack] like
 
 ```
 cd 01
@@ -14,5 +14,3 @@ cd 01
 stack exec -- ghc Part1
 ./Part1 < input.txt
 ```
-
-[stack]: https://haskellstack.org
