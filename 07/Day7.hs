@@ -1,7 +1,7 @@
 module Day7 where
 
-import Data.Char
-import Data.List
+import Data.Char (isAlphaNum, isSpace, isControl)
+import Data.List (partition)
 
 data Detail = Detail String Int
   deriving Show
