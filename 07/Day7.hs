@@ -22,7 +22,6 @@ isRoot (Detail name _, _) towers = all (\(_, children) -> not (name `elem` child
 findRoot :: Towers -> Tower
 findRoot towers = head $ filter (\x -> isRoot x towers) towers
 
-partitionTowers :: Towers -> (Tower, Towers, Towers)
-partitionTowers towers = (root, nodes, leafs)
+partitionTowers :: Towers -> (Towers, Towers)
+partitionTowers towers = (nodes, leafs)
   where (leafs, nodes) = partition (\x@(_, children) -> children == []) towers
-        root = findRoot nodes
