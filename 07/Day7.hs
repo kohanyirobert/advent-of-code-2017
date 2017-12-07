@@ -1,6 +1,7 @@
 module Day7 where
 
 import Data.Char
+import Data.List
 
 data Detail = Detail String Int
   deriving Show
@@ -15,11 +16,13 @@ getTowers string = map toTower dataRecords
         dataRecords = map words dataLines
         toTower = \(name : weight : children) -> (Detail name (read weight), children)
 
-findPossibleRoots :: Towers -> Towers
-findPossibleRoots towers = filter (\x@(_, children) -> children /= []) towers
-
 isRoot :: Tower -> Towers -> Bool
 isRoot (Detail name _, _) towers = all (\(_, children) -> not (name `elem` children)) towers
 
 findRoot :: Towers -> Tower
 findRoot towers = head $ filter (\x -> isRoot x towers) towers
+
+partitionTowers :: Towers -> (Tower, Towers, Towers)
+partitionTowers towers = (root, nodes, leafs)
+  where (leafs, nodes) = partition (\x@(_, children) -> children == []) towers
+        root = findRoot nodes
