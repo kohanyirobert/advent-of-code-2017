@@ -47,7 +47,7 @@ getInstructions string = map toInstruction $ map words $ lines string
 followInstructions' :: [Instruction] -> State -> State
 followInstructions' [] state = state
 followInstructions' (instruction@(Instruction r1 op n1 r2 cmp n2) : instructions) state
-  | comparator (Map.findWithDefault 0 r2 state) n2 = followInstructions' instructions newState
+  | comparator (fromJust $ Map.lookup r2 state) n2 = followInstructions' instructions newState
   | otherwise = followInstructions' instructions state
   where (Operator _ operator) = op
         (Comparison _ comparator) = cmp
