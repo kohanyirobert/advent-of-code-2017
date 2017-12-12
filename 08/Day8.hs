@@ -44,27 +44,29 @@ toInstruction (r1 : op : n1 : _ : r2 : cmp : n2 : []) = instruction
 getInstructions :: String -> [Instruction]
 getInstructions string = map toInstruction $ map words $ lines string
 
-followInstructions' :: [Instruction] -> State -> State
-followInstructions' [] state = state
-followInstructions' (instruction@(Instruction r1 op n1 r2 cmp n2) : instructions) state
-  | comparator (fromJust $ Map.lookup r2 state) n2 = followInstructions' instructions newState
-  | otherwise = followInstructions' instructions state
+followInstructions' :: [Instruction] -> State -> Int -> (State, Int)
+followInstructions' [] state top = (state, top)
+followInstructions' (instruction@(Instruction r1 op n1 r2 cmp n2) : instructions) state top
+  | comparator (fromJust $ Map.lookup r2 state) n2 = followInstructions' instructions newState newTop
+  | otherwise = followInstructions' instructions state top
   where (Operator _ operator) = op
         (Comparison _ comparator) = cmp
         newState = Map.insertWith operator r1 n1 state
+        newTop = max top (findTopValue state)
 
 -- Need to initialize every key to 0, because Map.insertWith works incorrectly otherwise, e.g.
 --
 --   given `reg1 dec -123` if reg2 == 0' (when the condition holds) -123 will be inserted
 --   into the map as-is instead of doing `0 - -123' which is 123 instead
-followInstructions :: [Instruction] -> State
-followInstructions instructions = followInstructions' instructions state
+followInstructions :: [Instruction] -> (State, Int)
+followInstructions instructions = followInstructions' instructions state 0
   where state = foldl (\m (Instruction r1 _ _ _ _ _) -> Map.insert r1 0 m) Map.empty instructions
 
-findLargestRegister :: State -> Maybe (Register, Int)
-findLargestRegister state = Map.foldlWithKey findMaximumValue Nothing state
-  where findMaximumValue = \r k v -> if isNothing r
-                                     then Just (k,v)
-                                     else if snd (fromJust r) < v
-                                          then Just (k,v)
-                                          else r
+findTopValue :: State -> Int
+findTopValue state = value
+  where onMax = \r k v -> if isNothing r
+                          then Just (k,v)
+                          else if snd (fromJust r) < v
+                               then Just (k,v)
+                               else r
+        (_, value) = fromJust $ Map.foldlWithKey onMax Nothing state
