@@ -8,10 +8,8 @@ type List = [Int]
 
 data State = State Position Skip
 
-getSizes :: String -> Sizes
-getSizes string =
-  let commaToSpace = \c -> if c == ',' then ' ' else c
-  in map read $ words $ map commaToSpace string
+getSizes :: String -> (Char -> Char) -> Sizes
+getSizes string mapper = map read $ words $ map mapper string
 
 tieKnot :: Position -> Size -> List -> List
 tieKnot start skip list
