@@ -16,8 +16,11 @@ toSouthEast (x, y, z) = (x + 1, y - 1, z)
 hexDistance :: HexCoordinate -> HexCoordinate -> HexDistance
 hexDistance (x0, y0, z0) (x1, y1, z1) = (sum $ map abs [x0 - x1, y0 - y1, z0 - z1]) `div` 2
 
+hexTransform' :: HexCoordinate -> [HexDirection] -> [HexCoordinate]
+hexTransform' coordinate directions = scanl (\c d -> d c) coordinate directions
+
 hexTransform :: HexCoordinate -> [HexDirection] -> HexCoordinate
-hexTransform coordinate directions = foldl (\c d -> d c) coordinate directions
+hexTransform coordinate directions = last $ hexTransform' coordinate directions
 
 getDirections :: String -> [HexDirection]
 getDirections string = map stringToDirection $ words $ map commaToSpace string
