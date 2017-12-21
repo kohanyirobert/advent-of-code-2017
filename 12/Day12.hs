@@ -12,6 +12,10 @@ data Program = Program Id [Id]
 data Node = Node Id [Node]
   deriving (Eq, Show)
 
+sort :: (Ord a) => [a] -> [a]
+sort [] = []
+sort (x : xs) = sort (filter (<= x) xs) ++ [x] ++ sort (filter (> x) xs)
+
 getPrograms :: String -> [Program]
 getPrograms string = map toProgram dataRecords
   where toDataLine = \line -> filter (\char -> isDigit char || isSpace char) line
@@ -37,10 +41,18 @@ buildGraph' seenPrograms program@(Program programId connectedIds) allPrograms = 
 buildGraph :: Program -> [Program] -> Node
 buildGraph program allPrograms = buildGraph' [] program allPrograms
 
+buildAllGraphs :: [Program] -> [Node]
+buildAllGraphs programs = map (\program -> buildGraph program programs) programs
+
 collectIds' :: Node -> [Id] -> [Id]
-collectIds' node@(Node id nodes) ids = uniqueIds
+collectIds' node@(Node id nodes) ids = sort uniqueIds
   where allIds = id : foldl (\b a -> b ++ (collectIds' a ids)) ids nodes
         uniqueIds = foldl (\b a -> if a `elem` b then b else a : b) [] allIds
 
 collectIds :: Node -> [Id]
 collectIds node = collectIds' node []
+
+collectAllIds :: [Node] -> [[Id]]
+collectAllIds nodes = uniqueIds
+  where allIds = map collectIds nodes
+        uniqueIds = foldl (\b a -> if a `elem` b then b else a : b) [] allIds
