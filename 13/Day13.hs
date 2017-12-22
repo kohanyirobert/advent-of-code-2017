@@ -45,16 +45,16 @@ moveScanner range (Scanner position Up)
   | position == 0 = Scanner (position + 1) Down
   | otherwise = Scanner (position - 1) Up
 
-ridePacket' :: Picosecond -> [Layer] -> [Layer] -> [Layer]
-ridePacket' picosecond layers triggeredLayers
-  | picosecond == size = triggeredLayers
-  | otherwise = ridePacket' nextPicosecond nextLayers nextTriggeredLayers
+ridePacket' :: Position -> [Layer] -> [Layer] -> [Layer]
+ridePacket' position layers triggeredLayers
+  | position == size = triggeredLayers
+  | otherwise = ridePacket' nextPosition nextLayers nextTriggeredLayers
   where size = length layers
-        layer = layers !! picosecond
+        layer = layers !! position
         nextTriggeredLayers = case layer
                               of (Layer _ _ _ (Scanner 0 _)) -> triggeredLayers ++ [layer]
                                  _ -> triggeredLayers
-        nextPicosecond = picosecond + 1
+        nextPosition = position + 1
         updateLayer = \(Layer depth range severity scanner) -> Layer depth range severity (moveScanner range scanner)
         nextLayers = map updateLayer layers
 
