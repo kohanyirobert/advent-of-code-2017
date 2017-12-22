@@ -45,6 +45,10 @@ moveScanner range (Scanner position Up)
   | position == 0 = Scanner (position + 1) Down
   | otherwise = Scanner (position - 1) Up
 
+updateLayers :: [Layer] -> [Layer]
+updateLayers layers = map updateLayer layers
+  where updateLayer = \(Layer depth range severity scanner) -> Layer depth range severity (moveScanner range scanner)
+
 ridePacket' :: Position -> [Layer] -> [Layer] -> [Layer]
 ridePacket' position layers triggeredLayers
   | position == size = triggeredLayers
@@ -55,8 +59,7 @@ ridePacket' position layers triggeredLayers
                               of (Layer _ _ _ (Scanner 0 _)) -> triggeredLayers ++ [layer]
                                  _ -> triggeredLayers
         nextPosition = position + 1
-        updateLayer = \(Layer depth range severity scanner) -> Layer depth range severity (moveScanner range scanner)
-        nextLayers = map updateLayer layers
+        nextLayers = updateLayers layers
 
 ridePacket :: [Layer] -> [Layer]
 ridePacket layers = ridePacket' 0 layers []
