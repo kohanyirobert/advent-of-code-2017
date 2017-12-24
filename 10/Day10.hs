@@ -2,6 +2,7 @@ module Day10 where
 
 import Data.Char (ord)
 import Data.Bits (xor)
+import Numeric (readHex)
 import Text.Printf (printf)
 
 type Size = Int
@@ -11,6 +12,7 @@ type Skip = Int
 type List = [Int]
 type Times = Int
 
+data Encoding = Binary | Hexadecimal
 data State = State Position Skip List
 
 getSizes :: String -> Sizes
@@ -62,3 +64,16 @@ denseHash list size = map (\group -> foldl xor 0 group) $ groupOf size list
 
 hashToHex :: List -> String
 hashToHex list = foldl (\str num -> str ++ printf "%02x" num) "" list
+
+knotHashToBin :: String -> String
+knotHashToBin string = foldl (\str num -> str ++ printf "%04b" num) "" nums
+  where nums = map (\c -> fst . head .  readHex $ [c] :: Int) string
+
+knotHash :: Encoding -> String -> String
+knotHash Binary string = binaryHash
+  where hexadecimalHash = knotHash Hexadecimal string
+        nums = map (\c -> fst . head .  readHex $ [c] :: Int) hexadecimalHash
+        binaryHash = foldl (\str num -> str ++ printf "%04b" num) "" nums
+knotHash Hexadecimal string = hexaDecimalHash
+  where sizes = getByteSizes string ++ [17, 31, 73, 47, 23]
+        hexaDecimalHash = hashToHex $ denseHash 16 $ sparseHash 64 sizes [0..255]
