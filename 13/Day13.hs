@@ -9,13 +9,13 @@ type Picosecond = Int
 type Position = Int
 
 data Direction = Up | Down
-  deriving Show
+  deriving (Eq, Show)
 
 data Scanner = None | Scanner Position Direction
-  deriving Show
+  deriving (Eq, Show)
 
 data Layer = Layer Depth Range Severity Scanner
-  deriving Show
+  deriving (Eq, Show)
 
 fillMissingLayers :: [Layer] -> [Layer]
 fillMissingLayers [] = []
@@ -49,17 +49,24 @@ updateLayers :: [Layer] -> [Layer]
 updateLayers layers = map updateLayer layers
   where updateLayer = \(Layer depth range severity scanner) -> Layer depth range severity (moveScanner range scanner)
 
-ridePacket' :: Position -> [Layer] -> [Layer] -> [Layer]
-ridePacket' position layers triggeredLayers
-  | position == size = triggeredLayers
-  | otherwise = ridePacket' nextPosition nextLayers nextTriggeredLayers
-  where size = length layers
-        layer = layers !! position
-        nextTriggeredLayers = case layer
-                              of (Layer _ _ _ (Scanner 0 _)) -> triggeredLayers ++ [layer]
+ridePacket' :: [Layer] -> [Layer] -> [Layer]
+ridePacket' [] triggeredLayers = triggeredLayers
+ridePacket' (layer : layers) triggeredLayers = ridePacket' nextLayers nextTriggeredLayers
+  where nextTriggeredLayers = case layer
+                              of (Layer _ _ _ (Scanner 0 _)) -> layer : triggeredLayers
                                  _ -> triggeredLayers
-        nextPosition = position + 1
         nextLayers = updateLayers layers
 
 ridePacket :: [Layer] -> [Layer]
-ridePacket layers = ridePacket' 0 layers []
+ridePacket layers = ridePacket' layers []
+
+slipPacket' :: Picosecond -> [Layer] -> Picosecond
+slipPacket' delay layers
+  | triggeredLayers == [] = delay
+  | otherwise = slipPacket' nextDelay nextLayers
+  where triggeredLayers = ridePacket layers
+        nextDelay = delay + 1
+        nextLayers = updateLayers layers
+
+slipPacket :: [Layer] -> Picosecond
+slipPacket layers = slipPacket' 0 layers

@@ -14,3 +14,8 @@ cd 01
 stack exec -- ghc Part1
 ./Part1 < input.txt
 ```
+
+== Notes
+
+* Day 5 -- `Part2` finishes in \~30 seconds when compiled.
+* Day 13 -- `Part2` finishes in \~13 _minutes_ when compiled.
