@@ -28,4 +28,4 @@ getGrid string = Map.fromList $ concat indexedGrid
         indexedGrid = map (\(i, row) -> map (\(j, state) -> ((i, j), state)) $ zip range row) $ zip range grid
 
 countUsed :: Grid -> Count
-countUsed grid = Map.foldl (\count state -> count + if isUsed state then 1 else 0) 0 grid
+countUsed grid = length . Map.filter isUsed $ grid
