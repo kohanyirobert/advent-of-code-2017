@@ -16,7 +16,7 @@ type Grid = Map.Map Coodinate State
 
 isUsed :: State -> Bool
 isUsed Free = False
-isUsed (Used _) = True
+isUsed _ = True
 
 getGrid :: String -> Grid
 getGrid string = Map.fromList $ concat indexedGrid
@@ -28,4 +28,4 @@ getGrid string = Map.fromList $ concat indexedGrid
         indexedGrid = map (\(i, row) -> map (\(j, state) -> ((i, j), state)) $ zip range row) $ zip range grid
 
 countUsed :: Grid -> Count
-countUsed grid = foldl (\count s -> count + if isUsed s then 1 else 0) 0 grid
+countUsed grid = Map.foldl (\count state -> count + if isUsed state then 1 else 0) 0 grid
