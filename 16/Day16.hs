@@ -1,6 +1,5 @@
 module Day16 where
 
-import Debug.Trace (trace)
 import Data.Char (isControl)
 
 type Count = Int
@@ -53,3 +52,13 @@ applyDanceMove programs (Exchange a b) = programSwap a b programs
 
 followDanceMoves :: [Program] -> [DanceMove] -> [Program]
 followDanceMoves programs moves = foldl applyDanceMove programs moves
+
+findProgramVariations' :: [[Program]] -> [Program] -> [DanceMove] -> [[Program]]
+findProgramVariations' variations programs moves
+  | programs `elem` variations = variations
+  | otherwise = findProgramVariations' variations' programs' moves
+  where programs' = followDanceMoves programs moves
+        variations' = variations ++ [programs]
+
+findProgramVariations :: [Program] -> [DanceMove] -> [[Program]]
+findProgramVariations = findProgramVariations' []
