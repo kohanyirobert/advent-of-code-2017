@@ -1,7 +1,5 @@
 module Day17 where
 
-import Debug.Trace (traceShow)
-
 type Count = Int
 type StepSize = Int
 type Value = Int
@@ -11,7 +9,12 @@ type Size = Int
 data Buffer = CircularBuffer Size [Value] | ValueBuffer Size Position (Maybe Value)
   deriving Show
 
-data Spinlock = Spinlock StepSize Position Value Buffer
+{-
+  `stepSpinlock' doesn't access the updated value of `value' and `buffer' thus
+  thunks keep accumulating, making them strict here forces evaluation instead of
+  thunk creation avoiding space leak.
+-}
+data Spinlock = Spinlock StepSize Position !Value !Buffer
   deriving Show
 
 makeSpinlock :: Buffer -> StepSize -> Spinlock
@@ -43,9 +46,7 @@ bufferSize (ValueBuffer size _ _) = size
 stepSpinlock :: Count -> Spinlock -> Spinlock
 stepSpinlock count spinlock@(Spinlock stepSize position value buffer)
   | count == 0 = spinlock
-  | otherwise = stepSpinlock nextCount $ if count `mod` 5000 == 0
-                                         then traceShow newSpinlock newSpinlock
-                                         else newSpinlock
+  | otherwise = stepSpinlock nextCount newSpinlock
   where size = bufferSize buffer
         nextCount = count - 1
         nextPosition = ((position + stepSize) `mod` size) + 1
