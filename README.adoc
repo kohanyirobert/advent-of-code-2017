@@ -20,3 +20,4 @@ stack exec -- ghc Part1
 * Day 5 -- `Part2` finishes in ~30 seconds when compiled.
 * Day 13 -- `Part2` finishes in ~13 _minutes_ when compiled.
 * Day 14 -- feed `-i.:../10` to `ghci` or `ghc` in order to run or compile.
+* Day 17 -- `Part2` outputs unnecessary stuff to stdout with `trace` forcing eager evaluation to avoid leaking memory

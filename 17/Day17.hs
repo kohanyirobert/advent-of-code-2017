@@ -21,7 +21,9 @@ makeCircularBuffer :: Buffer
 makeCircularBuffer = CircularBuffer 1 [0]
 
 makeValueBuffer :: Position -> Buffer
-makeValueBuffer position = ValueBuffer 1 position Nothing
+makeValueBuffer position 
+  | position <= 1 = ValueBuffer 1 position Nothing
+  | otherwise = error "doesn't work with positions greater than 1"
 
 updateBuffer :: Position -> Value -> Buffer -> Buffer
 updateBuffer position value (CircularBuffer size values) = newBuffer
