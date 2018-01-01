@@ -6,8 +6,7 @@ import Data.Char (isAlpha)
 
 type Register = String
 type Operator = String
-type Soundcard = [Int]
-type Backup = [Int]
+type Queue = [Int]
 type Processor = Map.Map String Int
 type Pointer = Int
 type Offset = Int
@@ -16,17 +15,17 @@ type Predicate = State -> Bool
 
 data State = State { pointer :: Maybe Pointer
                    , instructions :: [Instruction]
-                   , soundcard :: Soundcard
                    , processor :: Processor
-                   , backup :: Backup
+                   , sent :: Queue
+                   , received :: Queue
                    }
 
 instance Show State where
-  show (State {pointer = p, soundcard = sc, processor = proc, backup = b}) =
+  show (State {pointer = p, sent = snd, processor = proc, received = rcv}) =
     "State {pointer = " ++ show p ++
-    ", soundcard = " ++ show sc ++
+    ", sent = " ++ show snd ++
     ", processor = " ++ show proc ++ 
-    ", backup = " ++ show b ++ 
+    ", received = " ++ show rcv ++ 
     "}"
 
 isRegister :: String -> Bool
@@ -44,9 +43,9 @@ movePointer offset state@(State {pointer = (Just p), instructions = is}) =
      else state {pointer = Nothing}
 
 sndRegister :: Register -> State -> State
-sndRegister r state@(State {soundcard = sc, processor = proc}) =
-  let sc' = (Map.findWithDefault 0 r proc) : sc
-  in state {soundcard = sc'}
+sndRegister r state@(State {sent = snd, processor = proc}) =
+  let snd' = (Map.findWithDefault 0 r proc) : snd
+  in state {sent = snd'}
 
 setRegister :: Register -> String -> State -> State
 setRegister r s state@(State {processor = proc}) =
@@ -69,10 +68,10 @@ modRegister r s state@(State {processor = proc}) =
   in state {processor= proc'}
 
 rcvRegister :: Register -> State -> State
-rcvRegister r state@(State {soundcard = sc, processor = proc, backup = b}) =
+rcvRegister r state@(State {sent = snd, processor = proc, received = rcv}) =
   if coerceToValue r proc == 0
   then state
-  else state {backup = head sc : b}
+  else state {received = head snd : rcv}
 
 jgzPointer :: String -> String -> State -> State
 jgzPointer x y state@(State {processor = proc}) =
@@ -98,7 +97,7 @@ getInstructions :: String -> [Instruction]
 getInstructions string = map (stringToInstruction . words) . lines $ string
 
 makeState :: [Instruction] -> State
-makeState instructions = State (Just 0) instructions [] Map.empty []
+makeState is = State {pointer = Just 0, instructions = is, processor = Map.empty, sent = [], received = []}
 
 runInstructions :: Predicate -> State -> State
 runInstructions _ state@(State {pointer = Nothing}) = state
