@@ -4,6 +4,7 @@ import qualified Data.Map.Strict as Map
 
 import Data.Char (isAlpha)
 
+type ProgId = Int
 type Register = String
 type Operator = String
 type Queue = [Int]
@@ -13,7 +14,8 @@ type Offset = Int
 type Instruction = State -> State
 type Predicate = State -> Bool
 
-data State = State { pointer :: Maybe Pointer
+data State = State { progId :: ProgId
+                   , pointer :: Maybe Pointer
                    , instructions :: [Instruction]
                    , processor :: Processor
                    , sent :: Queue
@@ -71,7 +73,7 @@ rcvRegister :: Register -> State -> State
 rcvRegister r state@(State {sent = snd, processor = proc, received = rcv}) =
   if coerceToValue r proc == 0
   then state
-  else state {received = head snd : rcv}
+  else state {sent = drop 1 snd, received = head snd : rcv}
 
 jgzPointer :: String -> String -> State -> State
 jgzPointer x y state@(State {processor = proc}) =
@@ -96,8 +98,8 @@ stringToInstruction (o : x : y : []) = case o of
 getInstructions :: String -> [Instruction]
 getInstructions string = map (stringToInstruction . words) . lines $ string
 
-makeState :: [Instruction] -> State
-makeState is = State {pointer = Just 0, instructions = is, processor = Map.empty, sent = [], received = []}
+makeState :: ProgId -> [Instruction] -> State
+makeState i is = State {progId = i, pointer = Just 0, instructions = is, processor = Map.singleton "p" i, sent = [], received = []}
 
 runInstructions :: Predicate -> State -> State
 runInstructions _ state@(State {pointer = Nothing}) = state
