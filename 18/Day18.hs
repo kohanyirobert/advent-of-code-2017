@@ -12,7 +12,6 @@ type Processor = Map.Map String Int
 type Pointer = Int
 type Offset = Int
 type Instruction = State -> State
-type Predicate = State -> Bool
 
 data State = State { progId :: ProgId
                    , pointer :: Maybe Pointer
@@ -101,8 +100,8 @@ getInstructions string = map (stringToInstruction . words) . lines $ string
 makeState :: ProgId -> [Instruction] -> State
 makeState i is = State {progId = i, pointer = Just 0, instructions = is, processor = Map.singleton "p" i, sent = [], received = []}
 
-runInstructions :: Predicate -> State -> State
-runInstructions _ state@(State {pointer = Nothing}) = state
-runInstructions predicate state@(State {pointer = (Just p), instructions = is})
-  | predicate state = state
-  | otherwise = runInstructions predicate $ (is !! p) state
+runSingle :: State -> State
+runSingle state@(State {pointer = Nothing}) = state
+runSingle state@(State {pointer = (Just p), instructions = is})
+  | received state /= [] = state
+  | otherwise = runSingle $ (is !! p) state
