@@ -102,6 +102,6 @@ makeState i is = State {progId = i, pointer = Just 0, instructions = is, process
 
 runSolo :: State -> State
 runSolo state@(State {pointer = Nothing}) = state
-runSolo state@(State {pointer = (Just p), instructions = is})
-  | received state /= [] = state
+runSolo state@(State {pointer = (Just p), instructions = is, received = rcv})
+  | rcv /= [] = state
   | otherwise = runSolo $ (is !! p) state
