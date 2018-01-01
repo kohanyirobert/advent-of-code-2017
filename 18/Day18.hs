@@ -100,8 +100,8 @@ getInstructions string = map (stringToInstruction . words) . lines $ string
 makeState :: ProgId -> [Instruction] -> State
 makeState i is = State {progId = i, pointer = Just 0, instructions = is, processor = Map.singleton "p" i, sent = [], received = []}
 
-runSingle :: State -> State
-runSingle state@(State {pointer = Nothing}) = state
-runSingle state@(State {pointer = (Just p), instructions = is})
+runSolo :: State -> State
+runSolo state@(State {pointer = Nothing}) = state
+runSolo state@(State {pointer = (Just p), instructions = is})
   | received state /= [] = state
-  | otherwise = runSingle $ (is !! p) state
+  | otherwise = runSolo $ (is !! p) state
