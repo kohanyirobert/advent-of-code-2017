@@ -11,7 +11,8 @@ type Queue = [Int]
 type Processor = Map.Map String Int
 type Pointer = Int
 type Offset = Int
-type Instruction = State -> State
+
+data Instruction = Instruction Operator (State -> State)
 
 data State = State { progId :: ProgId
                    , pointer :: Maybe Pointer
@@ -22,10 +23,10 @@ data State = State { progId :: ProgId
                    }
 
 instance Show State where
-  show (State {pointer = p, sent = snd, processor = proc, received = rcv}) =
+  show (State {pointer = p, processor = proc, sent = snd, received = rcv}) =
     "State {pointer = " ++ show p ++
-    ", sent = " ++ show snd ++
     ", processor = " ++ show proc ++ 
+    ", sent = " ++ show snd ++
     ", received = " ++ show rcv ++ 
     "}"
 
@@ -82,17 +83,19 @@ jgzPointer x y state@(State {processor = proc}) =
   in movePointer offset state
 
 stringToInstruction :: [String] -> Instruction
-stringToInstruction (o : x : []) = case o of
-  "snd" -> movePointer 1 . sndRegister x
-  "rcv" -> movePointer 1 . rcvRegister x
+stringToInstruction (o : x : []) =
+  Instruction o $ case o of
+    "snd" -> movePointer 1 . sndRegister x
+    "rcv" -> movePointer 1 . rcvRegister x
 
-stringToInstruction (o : x : y : []) = case o of
-  "set" -> movePointer 1 . setRegister x y
-  "add" -> movePointer 1 . addRegister x y
-  "mul" -> movePointer 1 . mulRegister x y
-  "mod" -> movePointer 1 . modRegister x y
-  "rcv" -> movePointer 1
-  "jgz" -> jgzPointer x y
+stringToInstruction (o : x : y : []) =
+  Instruction o $ case o of
+    "set" -> movePointer 1 . setRegister x y
+    "add" -> movePointer 1 . addRegister x y
+    "mul" -> movePointer 1 . mulRegister x y
+    "mod" -> movePointer 1 . modRegister x y
+    "rcv" -> movePointer 1
+    "jgz" -> jgzPointer x y
 
 getInstructions :: String -> [Instruction]
 getInstructions string = map (stringToInstruction . words) . lines $ string
@@ -104,4 +107,4 @@ runSolo :: State -> State
 runSolo state@(State {pointer = Nothing}) = state
 runSolo state@(State {pointer = (Just p), instructions = is, received = rcv})
   | rcv /= [] = state
-  | otherwise = runSolo $ (is !! p) state
+  | otherwise = let (Instruction _ f) = is !! p in runSolo $ f state
