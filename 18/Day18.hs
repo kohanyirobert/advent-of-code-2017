@@ -11,10 +11,16 @@ type Queue = [Int]
 type Processor = Map.Map String Int
 type Pointer = Int
 type Offset = Int
+type Predicate = State -> Bool
+type States = (State, State)
+
+data Mode = Solo | Duet
+  deriving (Show)
 
 data Instruction = Instruction Operator (State -> State)
 
 data State = State { progId :: ProgId
+                   , mode :: Mode
                    , pointer :: Maybe Pointer
                    , instructions :: [Instruction]
                    , processor :: Processor
@@ -23,8 +29,10 @@ data State = State { progId :: ProgId
                    }
 
 instance Show State where
-  show (State {pointer = p, processor = proc, sent = snd, received = rcv}) =
-    "State {pointer = " ++ show p ++
+  show (State {progId = i, mode = m, pointer = p, processor = proc, sent = snd, received = rcv}) =
+    "State {progId = " ++ show i ++
+    ", mode = " ++ show m ++
+    ", pointer = " ++ show p ++
     ", processor = " ++ show proc ++ 
     ", sent = " ++ show snd ++
     ", received = " ++ show rcv ++ 
@@ -32,6 +40,12 @@ instance Show State where
 
 isRegister :: String -> Bool
 isRegister = all isAlpha
+
+noMoreInstructions :: State -> Bool
+noMoreInstructions = (/= []) . received
+
+hasNewSent :: State -> State -> Bool
+hasNewSent a b = length (sent a) + 1 == length (sent b)
 
 coerceToValue :: String -> Processor -> Int
 coerceToValue s p = if isRegister s then Map.findWithDefault 0 s p else read s
@@ -70,10 +84,12 @@ modRegister r s state@(State {processor = proc}) =
   in state {processor= proc'}
 
 rcvRegister :: Register -> State -> State
-rcvRegister r state@(State {sent = snd, processor = proc, received = rcv}) =
+rcvRegister r state@(State {mode = Solo, processor = proc, sent = snd, received = rcv}) =
   if coerceToValue r proc == 0
   then state
-  else state {sent = drop 1 snd, received = head snd : rcv}
+  else state {sent = tail snd, received = head snd : rcv}
+rcvRegister r state@(State {mode = Duet, sent = snd, received = rcv}) =
+  state {sent = tail snd, received = head snd : rcv}
 
 jgzPointer :: String -> String -> State -> State
 jgzPointer x y state@(State {processor = proc}) =
@@ -100,11 +116,11 @@ stringToInstruction (o : x : y : []) =
 getInstructions :: String -> [Instruction]
 getInstructions string = map (stringToInstruction . words) . lines $ string
 
-makeState :: ProgId -> [Instruction] -> State
-makeState i is = State {progId = i, pointer = Just 0, instructions = is, processor = Map.singleton "p" i, sent = [], received = []}
+makeState :: ProgId -> Mode -> [Instruction] -> State
+makeState i m is = State {progId = i, mode = m, pointer = Just 0, instructions = is, processor = Map.singleton "p" i, sent = [], received = []}
 
-runSolo :: State -> State
-runSolo state@(State {pointer = Nothing}) = state
-runSolo state@(State {pointer = (Just p), instructions = is, received = rcv})
-  | rcv /= [] = state
-  | otherwise = let (Instruction _ f) = is !! p in runSolo $ f state
+runSolo :: Predicate -> State -> State
+runSolo _ state@(State {pointer = Nothing}) = state
+runSolo predicate state@(State {pointer = (Just p), instructions = is, received = rcv})
+  | predicate state = state
+  | otherwise = let (Instruction _ f) = is !! p in runSolo predicate $ f state
