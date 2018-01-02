@@ -41,8 +41,8 @@ instance Show State where
 isRegister :: String -> Bool
 isRegister = all isAlpha
 
-noMoreInstructions :: State -> Bool
-noMoreInstructions = (/= []) . received
+hasReceived :: State -> Bool
+hasReceived = (/= []) . received
 
 hasNewSent :: State -> State -> Bool
 hasNewSent a b = length (sent a) + 1 == length (sent b)
