@@ -88,8 +88,10 @@ rcvRegister r state@(State {mode = Solo, processor = proc, sent = snd, received 
   if coerceToValue r proc == 0
   then state
   else state {sent = tail snd, received = head snd : rcv}
-rcvRegister r state@(State {mode = Duet, sent = snd, received = rcv}) =
-  state {sent = tail snd, received = head snd : rcv}
+rcvRegister r state@(State {mode = Duet, processor = proc, sent = snd, received = rcv}) =
+  let sndHead = head snd
+      proc' = Map.insert r sndHead proc
+  in state {processor = proc', sent = tail snd, received = sndHead : rcv}
 
 jgzPointer :: String -> String -> State -> State
 jgzPointer x y state@(State {processor = proc}) =
