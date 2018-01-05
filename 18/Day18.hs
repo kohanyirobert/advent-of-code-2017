@@ -3,126 +3,153 @@ module Day18 where
 import qualified Data.Map.Strict as Map
 
 import Data.Char (isAlpha)
+import Debug.Trace (traceShow)
 
-type ProgId = Int
+type Program = Int
 type Register = String
+type Operand = String
 type Operator = String
 type Queue = [Int]
 type Processor = Map.Map String Int
 type Pointer = Int
 type Offset = Int
 type Predicate = State -> Bool
-type States = (State, State)
+type Transform = ([State] -> [State])
 
-data Mode = Solo | Duet
-  deriving (Show)
+data Instruction
+  = UnaryInstruction Operator Operand Transform
+  | BinaryInstruction Operator Operand Operand Transform
 
-data Instruction = Instruction Operator (State -> State)
+instance Show Instruction where
+  show (UnaryInstruction o a _) = "UnaryInstruction " ++ show o ++ " " ++ show a
+  show (BinaryInstruction o a b _) = "BinaryInstruction " ++ show o ++ " " ++ show a ++ " " ++ show b
 
-data State = State { progId :: ProgId
-                   , mode :: Mode
-                   , pointer :: Maybe Pointer
-                   , instructions :: [Instruction]
-                   , processor :: Processor
-                   , sent :: Queue
-                   , received :: Queue
-                   }
+data State = State
+  { program :: Program
+  , pointer :: Maybe Pointer
+  , instructions :: [Instruction]
+  , processor :: Processor
+  , sent :: Queue
+  , received :: Queue
+  } deriving (Show)
 
-instance Show State where
-  show (State {progId = i, mode = m, pointer = p, processor = proc, sent = snd, received = rcv}) =
-    "State {progId = " ++ show i ++
-    ", mode = " ++ show m ++
-    ", pointer = " ++ show p ++
-    ", processor = " ++ show proc ++ 
-    ", sent = " ++ show snd ++
-    ", received = " ++ show rcv ++ 
-    "}"
-
-isRegister :: String -> Bool
+isRegister :: Operand -> Bool
 isRegister = all isAlpha
 
-hasReceived :: State -> Bool
-hasReceived = (/= []) . received
-
-hasNewSent :: State -> State -> Bool
-hasNewSent a b = length (sent a) + 1 == length (sent b)
-
 coerceToValue :: String -> Processor -> Int
-coerceToValue s p = if isRegister s then Map.findWithDefault 0 s p else read s
+coerceToValue s p
+  = if isRegister s
+    then Map.findWithDefault 0 s p
+    else read s
 
-movePointer :: Offset -> State -> State
-movePointer offset state@(State {pointer = (Just p), instructions = is}) =
-  let p' = p + offset
-      size = length is
-  in if 0 <= p' && p' <= size - 1
-     then state {pointer = Just p'}
-     else state {pointer = Nothing}
+movePointer :: Offset -> [State] -> [State]
+movePointer offset (s : ss)
+  = let (Just p) = pointer s
+        is = instructions s
+        p' = p + offset
+        size = length is
+    in if 0 <= p' && p' <= size - 1
+       then s {pointer = Just p'} : ss
+       else s {pointer = Nothing} : ss
 
-sndRegister :: Register -> State -> State
-sndRegister r state@(State {sent = snd, processor = proc}) =
-  let snd' = (Map.findWithDefault 0 r proc) : snd
-  in state {sent = snd'}
+jgzPointer :: Operand -> Operand -> [State] -> [State]
+jgzPointer a b state@(s : ss)
+  = let proc = processor s
+        offset = if coerceToValue a proc == 0
+                 then 1
+                 else coerceToValue b proc
+    in movePointer offset state
 
-setRegister :: Register -> String -> State -> State
-setRegister r s state@(State {processor = proc}) =
-  let proc' = Map.insert r (coerceToValue s proc) proc
-  in state {processor= proc'}
+sndRegister :: Operand -> [State] -> [State]
+sndRegister a (s : [])
+  = let snd = sent s
+        x = coerceToValue a (processor s)
+    in [s {sent = x : snd}]
+sndRegister a (s0 : s1 : [])
+  = let snd0 = sent s0
+        rcv1 = received s1
+        x0 = coerceToValue a (processor s0)
+    in [s0 {sent = x0 : snd0}, s1 {received = x0 : rcv1}]
 
-addRegister :: Register -> String -> State -> State
-addRegister r s state@(State {processor = proc}) =
-  let proc' = Map.adjust (\a -> a + coerceToValue s proc) r proc
-  in state {processor= proc'}
+rcvRegister :: Operand -> [State] -> [State]
+rcvRegister a (s : [])
+  = let x = coerceToValue a (processor s)
+        snd = sent s
+        rcv = received s
+    in if x == 0
+       then [s]
+       else [s {sent = tail snd, received = head snd : rcv}]
+rcvRegister r (s0 : s1 : [])
+  = let rcv0 = received s0
+        x = head rcv0
+        (s0' : []) = setRegister r (show x) [s0]
+    in [s0', s1]
 
-mulRegister :: Register -> String -> State -> State
-mulRegister r s state@(State {processor = proc}) =
-  let proc' = Map.adjust (\a -> a * coerceToValue s proc) r proc
-  in state {processor= proc'}
+setRegister :: Register -> Operand -> [State] -> [State]
+setRegister r b (s : ss)
+  = let proc = processor s
+        proc' = Map.insert r (coerceToValue b proc) proc
+    in s {processor = proc'} : ss
 
-modRegister :: Register -> String -> State -> State
-modRegister r s state@(State {processor = proc}) =
-  let proc' = Map.adjust (\a -> a `mod` coerceToValue s proc) r proc
-  in state {processor= proc'}
+addRegister :: Register -> Operand -> [State] -> [State]
+addRegister r b (s : ss)
+  = let proc = processor s
+        proc' = Map.adjust (\a -> a + coerceToValue b proc) r proc
+    in s {processor = proc'} : ss
 
-rcvRegister :: Register -> State -> State
-rcvRegister r state@(State {mode = Solo, processor = proc, sent = snd, received = rcv}) =
-  if coerceToValue r proc == 0
-  then state
-  else state {sent = tail snd, received = head snd : rcv}
-rcvRegister r state@(State {mode = Duet, processor = proc, sent = snd, received = rcv}) =
-  let sndHead = head snd
-      proc' = Map.insert r sndHead proc
-  in state {processor = proc', sent = tail snd, received = sndHead : rcv}
+mulRegister :: Register -> Operand -> [State] -> [State]
+mulRegister r b (s : ss)
+  = let proc = processor s
+        proc' = Map.adjust (\a -> a * coerceToValue b proc) r proc
+    in s {processor = proc'} : ss
 
-jgzPointer :: String -> String -> State -> State
-jgzPointer x y state@(State {processor = proc}) =
-  let offset = if coerceToValue x proc == 0
-               then 1
-               else coerceToValue y proc
-  in movePointer offset state
+modRegister :: Register -> Operand -> [State] -> [State]
+modRegister r b (s : ss)
+  = let proc = processor s
+        proc' = Map.adjust (\a -> a `mod` coerceToValue b proc) r proc
+    in s {processor = proc'} : ss
 
 stringToInstruction :: [String] -> Instruction
-stringToInstruction (o : x : []) =
-  Instruction o $ case o of
-    "snd" -> movePointer 1 . sndRegister x
-    "rcv" -> movePointer 1 . rcvRegister x
-
-stringToInstruction (o : x : y : []) =
-  Instruction o $ case o of
-    "set" -> movePointer 1 . setRegister x y
-    "add" -> movePointer 1 . addRegister x y
-    "mul" -> movePointer 1 . mulRegister x y
-    "mod" -> movePointer 1 . modRegister x y
-    "rcv" -> movePointer 1
-    "jgz" -> jgzPointer x y
+stringToInstruction (o : a : []) =
+  UnaryInstruction o a $ case o of
+    "snd" -> movePointer 1 . sndRegister a
+    "rcv" -> movePointer 1 . rcvRegister a
+stringToInstruction (o : a : b : []) =
+  BinaryInstruction o a b $ case o of
+    "set" -> movePointer 1 . setRegister a b
+    "add" -> movePointer 1 . addRegister a b
+    "mul" -> movePointer 1 . mulRegister a b
+    "mod" -> movePointer 1 . modRegister a b
+    "jgz" -> jgzPointer a b
 
 getInstructions :: String -> [Instruction]
 getInstructions string = map (stringToInstruction . words) . lines $ string
 
-makeState :: ProgId -> Mode -> [Instruction] -> State
-makeState i m is = State {progId = i, mode = m, pointer = Just 0, instructions = is, processor = Map.singleton "p" i, sent = [], received = []}
+makeState :: Program -> [Instruction] -> State
+makeState i is
+  = State { program = i
+          , pointer = Just 0
+          , instructions = is
+          , processor = Map.singleton "p" i
+          , sent = []
+          , received = []
+          }
 
-runSolo :: Predicate -> State -> State
-runSolo _ state@(State {pointer = Nothing}) = state
-runSolo predicate state@(State {pointer = (Just p), instructions = is, received = rcv})
-  | predicate state = state
-  | otherwise = let (Instruction _ f) = is !! p in runSolo predicate $ f state
+runInstructions :: [State] -> [State]
+runInstructions (s : [])
+  | rcv /= [] = [s]
+  | otherwise = let is = instructions s
+                    (Just p) = pointer s
+                    i = is !! p
+                    f' = case i of (UnaryInstruction _ _ f) -> f
+                                   (BinaryInstruction _ _ _ f) -> f
+                    (s' : []) = f' [s]
+                in runInstructions [s']
+  where rcv = received s
+runInstructions (s0 : s1 : [])
+  = let is0 = instructions s0
+        (Just p0) = pointer s0
+        i = is0 !! p0
+        f' = case i of (UnaryInstruction _ _ f) -> f
+                       (BinaryInstruction _ _ _ f) -> f
+    in f' [s0, s1]
