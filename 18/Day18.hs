@@ -3,7 +3,7 @@ module Day18 where
 import qualified Data.Map.Strict as Map
 
 import Data.Char (isAlpha)
-import Debug.Trace (traceShow)
+import Data.Maybe (fromJust)
 
 type Program = Int
 type Register = String
@@ -13,19 +13,31 @@ type Queue = [Int]
 type Processor = Map.Map String Int
 type Pointer = Int
 type Offset = Int
-type Predicate = State -> Bool
 type Transform = ([State] -> [State])
 
+data Status = Running | Waiting
+  deriving (Eq, Show)
+
 data Instruction
-  = UnaryInstruction Operator Operand Transform
-  | BinaryInstruction Operator Operand Operand Transform
+  = UnaryInstruction { operator :: Operator
+                     , operand :: Operand
+                     , transform :: Transform
+                     }
+  | BinaryInstruction { operator :: Operator
+                      , operandA :: Operand
+                      , operandB :: Operand
+                      , transform :: Transform
+                      }
 
 instance Show Instruction where
-  show (UnaryInstruction o a _) = "UnaryInstruction " ++ show o ++ " " ++ show a
-  show (BinaryInstruction o a b _) = "BinaryInstruction " ++ show o ++ " " ++ show a ++ " " ++ show b
+  show (UnaryInstruction {operator = o, operand = a})
+    = "UnaryInstruction {operator = " ++ show o ++ " operand = " ++ show a ++ "}"
+  show (BinaryInstruction {operator = o, operandA = a, operandB = b})
+    = "BinaryInstruction {operator = " ++ show o ++ " operandA = " ++ show a ++ " operandB = " ++ show b ++ "}"
 
 data State = State
   { program :: Program
+  , status :: Status
   , pointer :: Maybe Pointer
   , instructions :: [Instruction]
   , processor :: Processor
@@ -55,9 +67,9 @@ movePointer offset (s : ss)
 jgzPointer :: Operand -> Operand -> [State] -> [State]
 jgzPointer a b state@(s : ss)
   = let proc = processor s
-        offset = if coerceToValue a proc == 0
-                 then 1
-                 else coerceToValue b proc
+        offset = if coerceToValue a proc > 0
+                 then coerceToValue b proc
+                 else 1
     in movePointer offset state
 
 sndRegister :: Operand -> [State] -> [State]
@@ -69,7 +81,7 @@ sndRegister a (s0 : s1 : [])
   = let snd0 = sent s0
         rcv1 = received s1
         x0 = coerceToValue a (processor s0)
-    in [s0 {sent = x0 : snd0}, s1 {received = x0 : rcv1}]
+    in [s0 {sent = snd0 ++ [x0]}, s1 {received = rcv1 ++ [x0]}]
 
 rcvRegister :: Operand -> [State] -> [State]
 rcvRegister a (s : [])
@@ -81,9 +93,11 @@ rcvRegister a (s : [])
        else [s {sent = tail snd, received = head snd : rcv}]
 rcvRegister r (s0 : s1 : [])
   = let rcv0 = received s0
-        x = head rcv0
-        (s0' : []) = setRegister r (show x) [s0]
-    in [s0', s1]
+    in if null rcv0
+       then [s0 {status = Waiting}, s1]
+       else let x = head rcv0
+                (s0' : []) = setRegister r (show x) [s0]
+                in movePointer 1 [s0' {status = Running, received = tail rcv0}, s1]
 
 setRegister :: Register -> Operand -> [State] -> [State]
 setRegister r b (s : ss)
@@ -113,7 +127,7 @@ stringToInstruction :: [String] -> Instruction
 stringToInstruction (o : a : []) =
   UnaryInstruction o a $ case o of
     "snd" -> movePointer 1 . sndRegister a
-    "rcv" -> movePointer 1 . rcvRegister a
+    "rcv" -> rcvRegister a
 stringToInstruction (o : a : b : []) =
   BinaryInstruction o a b $ case o of
     "set" -> movePointer 1 . setRegister a b
@@ -128,6 +142,7 @@ getInstructions string = map (stringToInstruction . words) . lines $ string
 makeState :: Program -> [Instruction] -> State
 makeState i is
   = State { program = i
+          , status = Running
           , pointer = Just 0
           , instructions = is
           , processor = Map.singleton "p" i
@@ -135,21 +150,29 @@ makeState i is
           , received = []
           }
 
+findState :: Program -> [State] -> Maybe State
+findState _ [] = Nothing
+findState i (s : ss)
+  | i == program s = Just s
+  | otherwise = findState i ss
+
+isWaiting :: [State] -> Bool
+isWaiting states = all (\s -> status s == Waiting) states
+
 runInstructions :: [State] -> [State]
-runInstructions (s : [])
-  | rcv /= [] = [s]
-  | otherwise = let is = instructions s
-                    (Just p) = pointer s
-                    i = is !! p
-                    f' = case i of (UnaryInstruction _ _ f) -> f
-                                   (BinaryInstruction _ _ _ f) -> f
-                    (s' : []) = f' [s]
-                in runInstructions [s']
+runInstructions states@(s : [])
+  | p == Nothing || rcv /= [] = states
+  | otherwise = runInstructions [s']
   where rcv = received s
-runInstructions (s0 : s1 : [])
-  = let is0 = instructions s0
-        (Just p0) = pointer s0
-        i = is0 !! p0
-        f' = case i of (UnaryInstruction _ _ f) -> f
-                       (BinaryInstruction _ _ _ f) -> f
-    in f' [s0, s1]
+        is = instructions s
+        p = pointer s
+        i = is !! (fromJust p)
+        f' = transform i
+        (s' : []) = f' [s]
+runInstructions states@(s : ss)
+  | isWaiting states = states
+  | otherwise = runInstructions . reverse . f $ states
+  where (Just p) = pointer s
+        is = instructions s
+        i = is !! p
+        f = transform i
