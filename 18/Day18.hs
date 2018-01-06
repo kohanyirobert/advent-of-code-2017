@@ -54,15 +54,15 @@ coerceToValue s p
     then Map.findWithDefault 0 s p
     else read s
 
-movePointer :: Offset -> [State] -> [State]
-movePointer offset (s : ss)
+movePointer :: Offset -> State -> State
+movePointer offset s
   = let (Just p) = pointer s
         is = instructions s
         p' = p + offset
         size = length is
     in if 0 <= p' && p' <= size - 1
-       then s {pointer = Just p'} : ss
-       else s {pointer = Nothing} : ss
+       then s {pointer = Just p'}
+       else s {pointer = Nothing}
 
 jgzPointer :: Operand -> Operand -> [State] -> [State]
 jgzPointer a b state@(s : ss)
@@ -70,70 +70,77 @@ jgzPointer a b state@(s : ss)
         offset = if coerceToValue a proc > 0
                  then coerceToValue b proc
                  else 1
-    in movePointer offset state
+    in movePointer offset s : ss
 
 sndRegister :: Operand -> [State] -> [State]
 sndRegister a (s : [])
   = let snd = sent s
         x = coerceToValue a (processor s)
-    in [s {sent = x : snd}]
+    in [movePointer 1 s {sent = x : snd}]
 sndRegister a (s0 : s1 : [])
   = let snd0 = sent s0
         rcv1 = received s1
         x0 = coerceToValue a (processor s0)
-    in [s0 {sent = snd0 ++ [x0]}, s1 {received = rcv1 ++ [x0]}]
+        s0' = movePointer 1 s0 {sent = snd0 ++ [x0]}
+        s1' = s1 {received = rcv1 ++ [x0]}
+    in [s0', s1']
 
 rcvRegister :: Operand -> [State] -> [State]
 rcvRegister a (s : [])
   = let x = coerceToValue a (processor s)
         snd = sent s
         rcv = received s
-    in if x == 0
-       then [s]
-       else [s {sent = tail snd, received = head snd : rcv}]
-rcvRegister r (s0 : s1 : [])
-  = let rcv0 = received s0
-    in if null rcv0
-       then [s0 {status = Waiting}, s1]
-       else let x = head rcv0
-                (s0' : []) = setRegister r (show x) [s0]
-                in movePointer 1 [s0' {status = Running, received = tail rcv0}, s1]
+    in [movePointer 1 $ if x == 0
+                        then s
+                        else s {sent = tail snd, received = head snd : rcv}]
+rcvRegister r (s : ss)
+  = let rcv = received s
+    in if null rcv
+       then s {status = Waiting} : ss
+       else let proc = processor s
+                proc' = Map.insert r (head rcv) proc
+                s' = movePointer 1 s {status = Running, processor = proc', received = tail rcv}
+                in s' : ss
 
 setRegister :: Register -> Operand -> [State] -> [State]
 setRegister r b (s : ss)
   = let proc = processor s
         proc' = Map.insert r (coerceToValue b proc) proc
-    in s {processor = proc'} : ss
+        s' = movePointer 1 s {processor = proc'}
+    in s' : ss
 
 addRegister :: Register -> Operand -> [State] -> [State]
 addRegister r b (s : ss)
   = let proc = processor s
         proc' = Map.adjust (\a -> a + coerceToValue b proc) r proc
-    in s {processor = proc'} : ss
+        s' = movePointer 1 s {processor = proc'}
+    in s' : ss
 
 mulRegister :: Register -> Operand -> [State] -> [State]
 mulRegister r b (s : ss)
   = let proc = processor s
         proc' = Map.adjust (\a -> a * coerceToValue b proc) r proc
-    in s {processor = proc'} : ss
+        s' = movePointer 1 s {processor = proc'}
+    in s' : ss
 
 modRegister :: Register -> Operand -> [State] -> [State]
 modRegister r b (s : ss)
   = let proc = processor s
         proc' = Map.adjust (\a -> a `mod` coerceToValue b proc) r proc
-    in s {processor = proc'} : ss
+        s' = movePointer 1 s {processor = proc'}
+    in s' : ss
 
 stringToInstruction :: [String] -> Instruction
 stringToInstruction (o : a : []) =
   UnaryInstruction o a $ case o of
-    "snd" -> movePointer 1 . sndRegister a
+    "snd" -> sndRegister a
     "rcv" -> rcvRegister a
 stringToInstruction (o : a : b : []) =
   BinaryInstruction o a b $ case o of
-    "set" -> movePointer 1 . setRegister a b
-    "add" -> movePointer 1 . addRegister a b
-    "mul" -> movePointer 1 . mulRegister a b
-    "mod" -> movePointer 1 . modRegister a b
+    "set" -> setRegister a b
+    "add" -> addRegister a b
+    "mul" -> mulRegister a b
+    "mod" -> modRegister a b
     "jgz" -> jgzPointer a b
 
 getInstructions :: String -> [Instruction]
@@ -156,21 +163,20 @@ findState i (s : ss)
   | i == program s = Just s
   | otherwise = findState i ss
 
-isWaiting :: [State] -> Bool
-isWaiting states = all (\s -> status s == Waiting) states
+isDone :: [State] -> Bool
+isDone (s : []) = received s /= []
+isDone states = all ((Waiting ==) . status) states
 
 runInstructions :: [State] -> [State]
 runInstructions states@(s : [])
-  | p == Nothing || rcv /= [] = states
-  | otherwise = runInstructions [s']
-  where rcv = received s
-        is = instructions s
-        p = pointer s
-        i = is !! (fromJust p)
-        f' = transform i
-        (s' : []) = f' [s]
+  | isDone states = states
+  | otherwise = runInstructions . f $ states
+  where is = instructions s
+        (Just p) = pointer s
+        i = is !! p
+        f = transform i
 runInstructions states@(s : ss)
-  | isWaiting states = states
+  | isDone states = states
   | otherwise = runInstructions . reverse . f $ states
   where (Just p) = pointer s
         is = instructions s
