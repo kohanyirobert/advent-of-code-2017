@@ -5,5 +5,5 @@ main = do
   let diagram = getDiagram string
       start = findStart diagram
       packet = makePacket start
-      (Packet _ _ chars _) = followPath diagram packet
-  print chars
+      (Packet _ _ _ steps) = followPath diagram packet
+  print steps

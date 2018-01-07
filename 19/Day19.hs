@@ -6,11 +6,12 @@ import Data.Maybe (isJust)
 
 type Coordinate = (Int, Int)
 type Diagram = Map.Map Coordinate Field
+type Steps = Int
 
 data Direction = Upward | Downward | Leftward | Rightward
   deriving (Eq, Show)
 
-data Packet = Packet Coordinate Direction [Char]
+data Packet = Packet Coordinate Direction [Char] Steps
   deriving (Eq, Show)
 
 data Field = Blank | Turn | Vertical | Horizontal | Path Char
@@ -55,7 +56,7 @@ findStart :: Diagram -> Coordinate
 findStart diagram = fst . head . Map.toList . Map.filterWithKey isStart $ diagram
 
 makePacket :: Coordinate -> Packet
-makePacket coordinate = Packet coordinate Downward []
+makePacket coordinate = Packet coordinate Downward [] 0
 
 nextCoordinate :: Direction -> Coordinate -> Coordinate
 nextCoordinate Upward (x, y) = (x, y - 1)
@@ -80,13 +81,14 @@ updateChars (Path c) chars = chars ++ [c]
 updateChars _ chars = chars
 
 movePacket :: Diagram -> Packet -> Packet
-movePacket diagram packet@(Packet coordinate direction chars)
-  | Map.member coordinate diagram = Packet coordinate' direction' chars'
+movePacket diagram packet@(Packet coordinate direction chars steps)
+  | Map.member coordinate diagram = Packet coordinate' direction' chars' steps'
   | otherwise = packet
   where (Just field) = Map.lookup coordinate diagram
         chars' = updateChars field chars
         direction' = findDirection diagram direction coordinate field
         coordinate' = nextCoordinate direction' coordinate
+        steps' = steps + 1
 
 followPath :: Diagram -> Packet -> Packet
 followPath diagram packet
