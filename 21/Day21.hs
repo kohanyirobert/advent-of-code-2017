@@ -2,7 +2,7 @@ module Day21 where
 
 import qualified Data.Map.Strict as Map
 
-import Data.List (intercalate, transpose, nub)
+import Data.List (transpose, nub)
 
 type Pattern = [String]
 type Rule = (Pattern, Pattern)
