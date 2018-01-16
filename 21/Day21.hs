@@ -72,12 +72,12 @@ patternToGrid pattern
 charInGridAt :: Grid -> Coordinate -> Char
 charInGridAt grid (i, j)
   = let size = length . head . Map.elems $ grid
-        x = i `div` size
-        y = j `div` size
+        x = j `div` size
+        y = i `div` size
         (Just quadrant) = Map.lookup (x, y) grid
         p = i `mod` size
         q = j `mod` size
-    in (quadrant !! q) !! p
+    in (quadrant !! p) !! q
 
 rowInGridAt :: Grid -> String -> Coordinate -> String
 rowInGridAt grid string coordinate = string ++ [charInGridAt grid coordinate]
