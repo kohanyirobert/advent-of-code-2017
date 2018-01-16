@@ -52,31 +52,9 @@ patternVariations pattern
     in nub [a, b, c, d, e, f, g, h]
 
 quadrantInPatternAt :: Pattern -> Int -> Coordinate -> Pattern
-quadrantInPatternAt pattern size (p, q)
-  | size == 2 = let x = size * p
-                    y = size * q
-                    a = (pattern !! y) !! x
-                    b = (pattern !! (y + 1)) !! x
-                    c = (pattern !! y) !! (x + 1)
-                    d = (pattern !! (y + 1)) !! (x + 1)
-                in [[a, b]
-                   ,[c, d]
-                   ]
-  | size == 3 = let x = size * p
-                    y = size * q
-                    a = (pattern !! y) !! x
-                    b = (pattern !! (y + 1)) !! x
-                    c = (pattern !! (y + 2)) !! x
-                    d = (pattern !! y) !! (x + 1)
-                    e = (pattern !! (y + 1)) !! (x + 1)
-                    f = (pattern !! (y + 2)) !! (x + 1)
-                    g = (pattern !! y) !! (x + 2)
-                    h = (pattern !! (y + 1)) !! (x + 2)
-                    i = (pattern !! (y + 2)) !! (x + 2)
-                in [[a, b, c]
-                   ,[d, e, f]
-                   ,[g, h, i]
-                   ]
+quadrantInPatternAt pattern size (i, j)
+  = let range = [0..size - 1]
+    in map (\p -> map (\q -> (pattern !! (size * j + q)) !! (size * i + p)) range) range
 
 patternToGrid :: Pattern -> Grid
 patternToGrid pattern
@@ -94,12 +72,12 @@ patternToGrid pattern
 charInGridAt :: Grid -> Coordinate -> Char
 charInGridAt grid (i, j)
   = let size = length . head . Map.elems $ grid
-        x = j `div` size
-        y = i `div` size
+        x = i `div` size
+        y = j `div` size
         (Just quadrant) = Map.lookup (x, y) grid
         p = i `mod` size
         q = j `mod` size
-    in (quadrant !! p) !! q
+    in (quadrant !! q) !! p
 
 rowInGridAt :: Grid -> String -> Coordinate -> String
 rowInGridAt grid string coordinate = string ++ [charInGridAt grid coordinate]
@@ -115,11 +93,12 @@ gridToPattern grid
 
 enhancePattern :: Rules -> Pattern -> Pattern
 enhancePattern rules pattern
-  | (length pattern) `elem` [2, 3] = let (Just pattern') = Map.lookup pattern rules in pattern'
+  | size `elem` [2, 3] = let (Just pattern') = Map.lookup pattern rules in pattern'
   | otherwise = gridToPattern
               . Map.map (enhancePattern rules)
               . patternToGrid
               $ pattern
+  where size = length pattern
 
 patternToString :: Pattern -> String
 patternToString pattern = unlines pattern
