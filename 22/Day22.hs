@@ -2,22 +2,28 @@ module Day22 where
 
 import qualified Data.Map.Strict as Map
 
+import Data.List (foldl')
+
 type Count = Int
 type Coordinate = (Int, Int)
 type Node = Char
 type Cluster = Map.Map Coordinate Node
+type Step = (Node, Direction, Count)
+type Behavior = Step -> Step
 
 data Direction = Upward | Downward | Leftward | Rightward
   deriving (Show)
 
-data Carrier = Carrier 
-  {coordinate :: Coordinate
+data Carrier = Carrier
+  { coordinate :: Coordinate
   , direction :: Direction
-  , infects :: Count
+  , infects :: !Count
   } deriving (Show)
 
-data State = State {cluster :: Cluster, carrier :: Carrier}
-  deriving (Show)
+data State = State
+  { cluster :: Cluster
+  , carrier :: Carrier
+  } deriving (Show)
 
 getCluster :: String -> Cluster
 getCluster string
@@ -46,6 +52,12 @@ turnLeft Leftward = Downward
 turnLeft Downward = Rightward
 turnLeft Rightward = Upward
 
+turnBack :: Direction -> Direction
+turnBack Upward = Downward
+turnBack Downward = Upward
+turnBack Leftward = Rightward
+turnBack Rightward = Leftward
+
 moveForward :: Coordinate -> Direction -> Coordinate
 moveForward (i, j) Upward = (i, j - 1)
 moveForward (i, j) Downward = (i, j + 1)
@@ -58,29 +70,32 @@ clean = '.'
 infected :: Node
 infected = '#'
 
-isClean :: Node -> Bool
-isClean '.' = True
-isClean _ = False
+weakened :: Node
+weakened = 'W'
 
-isInfected :: Node -> Bool
-isInfected '#' = True
-isInfected _ = False
+flagged :: Node
+flagged = 'F'
 
 startCarrier :: Carrier
 startCarrier = Carrier (0, 0) Upward 0
 
-burst :: State -> State
-burst (State cluster (Carrier coordinate direction infects))
+defaultBehavior :: Behavior
+defaultBehavior ('.', direction, infects) = (infected, turnLeft direction, infects + 1)
+defaultBehavior ('#', direction, infects) = (clean, turnRight direction, infects)
+
+evolvedBehavior :: Behavior
+evolvedBehavior ('.', direction, infects) = (weakened, turnLeft direction, infects)
+evolvedBehavior ('W', direction, infects) = (infected, direction, infects + 1)
+evolvedBehavior ('#', direction, infects) = (flagged, turnRight direction, infects)
+evolvedBehavior ('F', direction, infects) = (clean, turnBack direction, infects)
+
+burst :: Behavior -> State -> State
+burst behavior (State cluster (Carrier coordinate direction infects))
   = let node = Map.findWithDefault clean coordinate cluster
-        direction' = if isInfected node
-                     then turnRight direction
-                     else turnLeft direction
-        (node', infects') = if isClean node
-                            then (infected, infects + 1)
-                            else (clean, infects)
+        (node', direction', infects') = behavior (node, direction, infects)
         cluster' = Map.insert coordinate node' cluster
         coordinate' = moveForward coordinate direction'
     in (State cluster' (Carrier coordinate' direction' infects'))
 
-bursts :: State -> [State]
-bursts = iterate burst
+bursts :: Count -> Behavior -> State -> State
+bursts count behavior state = foldl' (\s _ -> burst behavior s) state [1..count]
