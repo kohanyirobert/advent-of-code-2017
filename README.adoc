@@ -22,3 +22,4 @@ stack exec -- ghc Part1
 * Day 14 -- feed `-i.:../10` to `ghci` or `ghc` in order to run or compile.
 * Day 20 -- `Part2` runs much faster when compiled; the solution is based on heuristic rather than a proof.
 * Day 21 -- `Part2` runs very slow, it could be optimized, because all 3x3 patterns can be treated independently from each other -- divide and conquer.
+* Day 23 -- feed `-i.:../18` to `ghci` or `ghc` in order to run or compile.

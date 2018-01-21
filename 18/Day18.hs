@@ -14,6 +14,7 @@ type Processor = Map.Map String Int
 type Pointer = Int
 type Offset = Int
 type Transform = ([State] -> [State])
+type Statistics = Map.Map Operand Int
 
 data Status = Running | Waiting
   deriving (Eq, Show)
@@ -43,6 +44,7 @@ data State = State
   , processor :: Processor
   , sent :: Queue
   , received :: Queue
+  , statistics :: Statistics
   } deriving (Show)
 
 isRegister :: Operand -> Bool
@@ -68,6 +70,14 @@ jgzPointer :: Operand -> Operand -> [State] -> [State]
 jgzPointer a b state@(s : ss)
   = let proc = processor s
         offset = if coerceToValue a proc > 0
+                 then coerceToValue b proc
+                 else 1
+    in movePointer offset s : ss
+
+jnzPointer :: Operand -> Operand -> [State] -> [State]
+jnzPointer a b state@(s : ss)
+  = let proc = processor s
+        offset = if coerceToValue a proc /= 0
                  then coerceToValue b proc
                  else 1
     in movePointer offset s : ss
@@ -116,6 +126,13 @@ addRegister r b (s : ss)
         s' = movePointer 1 s {processor = proc'}
     in s' : ss
 
+subRegister :: Register -> Operand -> [State] -> [State]
+subRegister r b (s : ss)
+  = let proc = processor s
+        proc' = Map.adjust (\a -> a - coerceToValue b proc) r proc
+        s' = movePointer 1 s {processor = proc'}
+    in s' : ss
+
 mulRegister :: Register -> Operand -> [State] -> [State]
 mulRegister r b (s : ss)
   = let proc = processor s
@@ -130,18 +147,29 @@ modRegister r b (s : ss)
         s' = movePointer 1 s {processor = proc'}
     in s' : ss
 
+updateStatistics :: Operator -> [State] -> [State]
+updateStatistics operator (s : ss)
+  = let stats = statistics s
+        stats' = if Map.member operator stats
+                 then Map.adjust (+1) operator stats
+                 else Map.insert operator 1 stats
+        s' = s {statistics = stats'}
+    in s' : ss
+
 stringToInstruction :: [String] -> Instruction
 stringToInstruction (o : a : []) =
   UnaryInstruction o a $ case o of
-    "snd" -> sndRegister a
-    "rcv" -> rcvRegister a
+    "snd" -> updateStatistics o . sndRegister a
+    "rcv" -> updateStatistics o . rcvRegister a
 stringToInstruction (o : a : b : []) =
   BinaryInstruction o a b $ case o of
-    "set" -> setRegister a b
-    "add" -> addRegister a b
-    "mul" -> mulRegister a b
-    "mod" -> modRegister a b
-    "jgz" -> jgzPointer a b
+    "set" -> updateStatistics o . setRegister a b
+    "add" -> updateStatistics o . addRegister a b
+    "sub" -> updateStatistics o . subRegister a b
+    "mul" -> updateStatistics o . mulRegister a b
+    "mod" -> updateStatistics o . modRegister a b
+    "jgz" -> updateStatistics o . jgzPointer a b
+    "jnz" -> updateStatistics o . jnzPointer a b
 
 getInstructions :: String -> [Instruction]
 getInstructions string = map (stringToInstruction . words) . lines $ string
@@ -155,6 +183,7 @@ makeState i is
           , processor = Map.singleton "p" i
           , sent = []
           , received = []
+          , statistics = Map.empty
           }
 
 findState :: Program -> [State] -> Maybe State
@@ -164,7 +193,7 @@ findState i (s : ss)
   | otherwise = findState i ss
 
 isDone :: [State] -> Bool
-isDone (s : []) = received s /= []
+isDone (s : []) = pointer s == Nothing || received s /= []
 isDone states = all ((Waiting ==) . status) states
 
 runInstructions :: [State] -> [State]
