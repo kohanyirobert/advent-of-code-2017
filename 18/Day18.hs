@@ -15,6 +15,7 @@ type Pointer = Int
 type Offset = Int
 type Transform = ([State] -> [State])
 type Statistics = Map.Map Operand Int
+type Predicate = [State] -> Bool
 
 data Status = Running | Waiting
   deriving (Eq, Show)
@@ -174,13 +175,15 @@ stringToInstruction (o : a : b : []) =
 getInstructions :: String -> [Instruction]
 getInstructions string = map (stringToInstruction . words) . lines $ string
 
-makeState :: Program -> [Instruction] -> State
-makeState i is
+makeState :: Bool -> Program -> [Instruction] -> State
+makeState debug i is
   = State { program = i
           , status = Running
           , pointer = Just 0
           , instructions = is
-          , processor = Map.singleton "p" i
+          , processor = if debug
+                        then Map.fromList [("a", 1), ("p", i)]
+                        else Map.singleton "p" i
           , sent = []
           , received = []
           , statistics = Map.empty
@@ -192,21 +195,17 @@ findState i (s : ss)
   | i == program s = Just s
   | otherwise = findState i ss
 
-isDone :: [State] -> Bool
-isDone (s : []) = pointer s == Nothing || received s /= []
-isDone states = all ((Waiting ==) . status) states
-
-runInstructions :: [State] -> [State]
-runInstructions states@(s : [])
+runInstructions :: Predicate -> [State] -> [State]
+runInstructions isDone states@(s : [])
   | isDone states = states
-  | otherwise = runInstructions . f $ states
+  | otherwise = runInstructions isDone . f $ states
   where is = instructions s
         (Just p) = pointer s
         i = is !! p
         f = transform i
-runInstructions states@(s : ss)
+runInstructions isDone states@(s : ss)
   | isDone states = states
-  | otherwise = runInstructions . reverse . f $ states
+  | otherwise = runInstructions isDone . reverse . f $ states
   where (Just p) = pointer s
         is = instructions s
         i = is !! p
