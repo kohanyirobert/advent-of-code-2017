@@ -64,6 +64,9 @@ isLockedPort (Port _ locked) = locked
 isUnlockedPort :: Port -> Bool
 isUnlockedPort = not . isLockedPort
 
+portToStrength :: Port -> Strength
+portToStrength (Port pins _) = pins
+
 isRootMagnet :: Magnet -> Bool
 isRootMagnet (Magnet a b) = isRootPort a || isRootPort b
 
@@ -97,6 +100,17 @@ connectMagnet (Magnet p@(Port a a') q@(Port b b'))
                                                      in Magnet r s'
   | otherwise = error "This shouldn't happen"
 
+magnetToStrength :: Magnet -> Strength
+magnetToStrength (Magnet a b) = portToStrength a + portToStrength b
+
+nextMagnet :: [Magnet] -> Tree -> Maybe Magnet
+nextMagnet [] _ = Nothing
+nextMagnet (m : ms) t
+  = let t' = updateTree m t
+    in if t == t'
+       then nextMagnet ms t
+       else Just m
+
 updateTree :: Magnet -> Tree -> Tree
 updateTree b t@(Tree a ts)
   = let sameThing = sameMagnets a b
@@ -110,14 +124,6 @@ updateTree b t@(Tree a ts)
             then let b' = connectMagnet a b
                  in Tree a (Tree b' [] : ts')
             else Tree a ts'
-
-nextMagnet :: [Magnet] -> Tree -> Maybe Magnet
-nextMagnet [] _ = Nothing
-nextMagnet (m : ms) t
-  = let t' = updateTree m t
-    in if t == t'
-       then nextMagnet ms t
-       else Just m
 
 buildTree :: [Magnet] -> Tree -> Tree
 buildTree ms t
@@ -139,12 +145,6 @@ buildTrees magnets
 findBridges :: Tree -> [Bridge]
 findBridges (Tree a []) = [[a]]
 findBridges (Tree a ts) = map (a :)  (foldr (\t bs -> bs ++ findBridges t) [] ts)
-
-portToStrength :: Port -> Strength
-portToStrength (Port pins _) = pins
-
-magnetToStrength :: Magnet -> Strength
-magnetToStrength (Magnet a b) = portToStrength a + portToStrength b
 
 bridgeToStrength :: Bridge -> Strength
 bridgeToStrength = foldl (\a b -> a + magnetToStrength b) 0
