@@ -1,12 +1,12 @@
 module Day24 where
 
-import Data.Maybe (fromJust)
-import Data.List (find)
+import Data.List (maximumBy)
 
 type Pins = Int
 type Locked = Bool
 type Bridge = [Magnet]
 type Strength = Int
+type Heuristic = Bridge -> Bridge -> Ordering
 
 data Port = Port Pins Locked
   deriving (Ord, Eq)
@@ -19,12 +19,6 @@ data Magnet = Magnet Port Port
 
 instance Show Magnet where
   show (Magnet a b) = (show a) ++ "/" ++ (show b)
-
-data Tree = Tree Magnet [Tree]
-  deriving (Eq)
-
-instance Show Tree where
-  show (Tree p ts) = show p ++ " " ++ show ts
 
 slashToSpace :: Char -> Char
 slashToSpace c = if c == '/' then ' ' else c
@@ -58,20 +52,12 @@ toRootMagnet (Magnet a b)
   | isRootPort b = Magnet a (lockPort b)
   | otherwise = error "This shouldn't happen"
 
-isLockedPort :: Port -> Bool
-isLockedPort (Port _ locked) = locked
-
-isUnlockedPort :: Port -> Bool
-isUnlockedPort = not . isLockedPort
-
-portToStrength :: Port -> Strength
-portToStrength (Port pins _) = pins
-
 isRootMagnet :: Magnet -> Bool
 isRootMagnet (Magnet a b) = isRootPort a || isRootPort b
 
-findRootMagnets :: [Magnet] -> [Magnet]
-findRootMagnets = filter isRootMagnet
+getRootMagnets :: [Magnet] -> [Magnet]
+getRootMagnets = map toRootMagnet
+               . filter isRootMagnet
 
 sameMagnets :: Magnet -> Magnet -> Bool
 sameMagnets (Magnet (Port a _) (Port b _))
@@ -85,66 +71,39 @@ isCompatiblePorts (Port a False) (Port b False) = a == b
 isCompatiblePorts _ _ = False
 
 isCompatibleMagnets :: Magnet -> Magnet -> Bool
-isCompatibleMagnets (Magnet a b) (Magnet c d)
-  = isCompatiblePorts a c
-  || isCompatiblePorts a d
-  || isCompatiblePorts b c
-  || isCompatiblePorts b d
+isCompatibleMagnets p@(Magnet a b) q@(Magnet c d)
+  | sameMagnets p q = error "This shouldn't happen"
+  | otherwise = isCompatiblePorts a c
+              || isCompatiblePorts a d
+              || isCompatiblePorts b c
+              || isCompatiblePorts b d
 
 connectMagnet :: Magnet -> Magnet -> Magnet
 connectMagnet (Magnet p@(Port a a') q@(Port b b'))
               (Magnet r@(Port c c') s@(Port d d'))
-  | isCompatiblePorts p r || isCompatiblePorts q r = let r' = Port c True
-                                                     in Magnet r' s
-  | isCompatiblePorts p s || isCompatiblePorts q s = let s' = Port d True
-                                                     in Magnet r s'
+  | isCompatiblePorts p r || isCompatiblePorts q r = Magnet (Port c True) s
+  | isCompatiblePorts p s || isCompatiblePorts q s = Magnet r (Port d True)
   | otherwise = error "This shouldn't happen"
 
-magnetToStrength :: Magnet -> Strength
-magnetToStrength (Magnet a b) = portToStrength a + portToStrength b
+portStrength :: Port -> Strength
+portStrength (Port pins _) = pins
 
-nextMagnet :: [Magnet] -> Tree -> Maybe Magnet
-nextMagnet [] _ = Nothing
-nextMagnet (m : ms) t
-  = let t' = updateTree m t
-    in if t == t'
-       then nextMagnet ms t
-       else Just m
+magnetStrength :: Magnet -> Strength
+magnetStrength (Magnet a b) = portStrength a + portStrength b
 
-updateTree :: Magnet -> Tree -> Tree
-updateTree b t@(Tree a ts)
-  = let sameThing = sameMagnets a b
-        alreadyInserted = Nothing /= find (\(Tree a' _) -> sameMagnets a' b) ts
-        ts' = map (\subT@(Tree a' _) -> if sameMagnets a' b
-                                        then subT
-                                        else updateTree b subT) ts
-    in if sameThing || alreadyInserted
-       then Tree a ts'
-       else if isCompatibleMagnets a b
-            then let b' = connectMagnet a b
-                 in Tree a (Tree b' [] : ts')
-            else Tree a ts'
+bridgeStrength :: Bridge -> Strength
+bridgeStrength = foldl (\a b -> a + magnetStrength b) 0
 
-buildTree :: [Magnet] -> Tree -> Tree
-buildTree ms t
-  = let m = nextMagnet ms t
-    in if m == Nothing
-       then t
-       else let m' = fromJust m
-                t' = updateTree m' t
-                ms' = filter (/= m') ms
-                ms'' = ms' ++ [m']
-            in buildTree ms'' t'
+buildBridge :: Heuristic -> [Magnet] -> Magnet -> Bridge
+buildBridge heuristic ms m
+  | null candidates = [m]
+  | otherwise = let bridges = map (\m' -> let ms' = filter (differentMagnets m') ms
+                                          in buildBridge heuristic ms' m') candidates
+                in m : maximumBy heuristic bridges
+  where candidates = map (connectMagnet m)
+                   . filter (isCompatibleMagnets m)
+                   $ ms
 
-buildTrees :: [Magnet] -> [Tree]
-buildTrees magnets
-  = let rootMagnets = map toRootMagnet . findRootMagnets $ magnets
-        getOtherMagnets rootMagnet = filter (differentMagnets rootMagnet) magnets
-    in map (\rootMagnet -> buildTree (getOtherMagnets rootMagnet) (Tree rootMagnet [])) rootMagnets
-
-findBridges :: Tree -> [Bridge]
-findBridges (Tree a []) = [[a]]
-findBridges (Tree a ts) = map (a :)  (foldr (\t bs -> bs ++ findBridges t) [] ts)
-
-bridgeToStrength :: Bridge -> Strength
-bridgeToStrength = foldl (\a b -> a + magnetToStrength b) 0
+buildBridges :: Heuristic -> [Magnet] -> [Bridge]
+buildBridges heuristic ms = map (\rm -> buildBridge heuristic (filter (differentMagnets rm) ms) rm) rms
+  where rms = getRootMagnets ms
