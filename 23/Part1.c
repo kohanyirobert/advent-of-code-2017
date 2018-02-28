@@ -13,11 +13,11 @@ int main(void) {
         b = 99;
         c = b;
         if (a != 0) {
-                b = b * 100;
-                muls = muls + 1;
-                b = b - -100000;
+                b *= 100;
+                muls++;
+                b += 100000;
                 c = b;
-                c = c - -17000;
+                c += 17000;
         }
         do {
                 f = 1;
@@ -26,27 +26,27 @@ int main(void) {
                         e = 2;
                         do {
                                 g = d;
-                                g = g * e;
-                                muls = muls + 1;
-                                g = g - b;
+                                g *= e;
+                                muls++;
+                                g -= b;
                                 if (g == 0) {
                                         f = 0;
                                 }
-                                e = e - -1;
+                                e++;
                                 g = e;
-                                g = g - b;
+                                g -= b;
                         } while (g != 0);
-                        d = d - -1;
+                        d++;
                         g = d;
-                        g = g - b;
+                        g -= b;
                 } while (g != 0);
                 if (f == 0) {
-                        h = h - -1;
+                        h++;
                 }
                 g = b;
-                g = g - c;
+                g -= c;
                 if (g != 0) {
-                        b = b - -17;
+                        b += 17;
                 } else {
                         break;
                 }
