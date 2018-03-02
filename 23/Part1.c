@@ -10,9 +10,10 @@ int main(void) {
         long g = 0;
         long h = 0;
         a = 0;
-        b = 99;
-        c = b;
-        if (a != 0) {
+        if (a == 0) {
+                b = 99;
+                c = b;
+        } else {
                 b *= 100;
                 muls++;
                 b += 100000;
