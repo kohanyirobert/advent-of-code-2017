@@ -6,4 +6,4 @@ main = do
       start = findStart diagram
       packet = makePacket start
       (Packet _ _ chars _) = followPath diagram packet
-  print chars
+  putStrLn chars
