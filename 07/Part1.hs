@@ -5,4 +5,4 @@ main = do
   let towers = getTowers string
   let (nodes, _) = partitionTowers towers
   let Tower (Detail name _ _) _ = findRoot nodes
-  print name
+  putStrLn name
