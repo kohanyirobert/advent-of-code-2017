@@ -1,12 +1,12 @@
 import Day24
 
-import Data.Ord (comparing)
 import Data.Monoid ((<>))
+import Data.Ord (comparing)
 
 main = do
   string <- getContents
-  print . maximum
-        . map bridgeStrength
-        . buildBridges (comparing length <> comparing bridgeStrength)
-        . getMagnets
-        $ string
+  print .
+    maximum .
+    map bridgeStrength .
+    buildBridges (comparing length <> comparing bridgeStrength) . getMagnets $
+    string

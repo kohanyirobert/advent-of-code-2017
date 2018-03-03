@@ -5,17 +5,32 @@ import qualified Data.Map.Strict as Map
 import Data.Maybe (isJust)
 
 type Coordinate = (Int, Int)
+
 type Diagram = Map.Map Coordinate Field
+
 type Steps = Int
 
-data Direction = Upward | Downward | Leftward | Rightward
+data Direction
+  = Upward
+  | Downward
+  | Leftward
+  | Rightward
   deriving (Eq, Show)
 
-data Packet = Packet Coordinate Direction [Char] Steps
+data Packet =
+  Packet Coordinate
+         Direction
+         [Char]
+         Steps
   deriving (Eq, Show)
 
-data Field = Blank | Turn | Vertical | Horizontal | Path Char
-  deriving Show
+data Field
+  = Blank
+  | Turn
+  | Vertical
+  | Horizontal
+  | Path Char
+  deriving (Show)
 
 toField :: Char -> Field
 toField c
@@ -43,17 +58,21 @@ isHorizontal Leftward = True
 isHorizontal Rightward = True
 isHorizontal _ = False
 
-getDiagram string
-  = let rows = lines string
-        indexedRows = zip [0..(length rows) - 1] rows
-        rowMapper = \(y, row) -> let cells = row
-                                     indexedCells = zip [0..(length cells) - 1] cells
-                                     cellMapper = \(x, cell) -> ((x, y), toField cell)
-                         in map cellMapper indexedCells
-    in Map.filter (not . isBlank) . Map.fromList . concat . map rowMapper $ indexedRows
+getDiagram string =
+  let rows = lines string
+      indexedRows = zip [0 .. (length rows) - 1] rows
+      rowMapper =
+        \(y, row) ->
+          let cells = row
+              indexedCells = zip [0 .. (length cells) - 1] cells
+              cellMapper = \(x, cell) -> ((x, y), toField cell)
+          in map cellMapper indexedCells
+  in Map.filter (not . isBlank) . Map.fromList . concat . map rowMapper $
+     indexedRows
 
 findStart :: Diagram -> Coordinate
-findStart diagram = fst . head . Map.toList . Map.filterWithKey isStart $ diagram
+findStart diagram =
+  fst . head . Map.toList . Map.filterWithKey isStart $ diagram
 
 makePacket :: Coordinate -> Packet
 makePacket coordinate = Packet coordinate Downward [] 0
@@ -70,10 +89,11 @@ findDirection diagram direction coordinate Turn
   | isVertical direction && isJust rightward = Rightward
   | isHorizontal direction && isJust upward = Upward
   | isHorizontal direction && isJust downward = Downward
-  where upward = Map.lookup (nextCoordinate Upward coordinate) diagram
-        downward = Map.lookup (nextCoordinate Downward coordinate) diagram
-        leftward = Map.lookup (nextCoordinate Leftward coordinate) diagram
-        rightward = Map.lookup (nextCoordinate Rightward coordinate) diagram
+  where
+    upward = Map.lookup (nextCoordinate Upward coordinate) diagram
+    downward = Map.lookup (nextCoordinate Downward coordinate) diagram
+    leftward = Map.lookup (nextCoordinate Leftward coordinate) diagram
+    rightward = Map.lookup (nextCoordinate Rightward coordinate) diagram
 findDirection _ direction _ _ = direction
 
 updateChars :: Field -> [Char] -> [Char]
@@ -84,14 +104,16 @@ movePacket :: Diagram -> Packet -> Packet
 movePacket diagram packet@(Packet coordinate direction chars steps)
   | Map.member coordinate diagram = Packet coordinate' direction' chars' steps'
   | otherwise = packet
-  where (Just field) = Map.lookup coordinate diagram
-        chars' = updateChars field chars
-        direction' = findDirection diagram direction coordinate field
-        coordinate' = nextCoordinate direction' coordinate
-        steps' = steps + 1
+  where
+    (Just field) = Map.lookup coordinate diagram
+    chars' = updateChars field chars
+    direction' = findDirection diagram direction coordinate field
+    coordinate' = nextCoordinate direction' coordinate
+    steps' = steps + 1
 
 followPath :: Diagram -> Packet -> Packet
 followPath diagram packet
   | packet == packet' = packet
   | otherwise = followPath diagram packet'
-  where packet' = movePacket diagram packet
+  where
+    packet' = movePacket diagram packet

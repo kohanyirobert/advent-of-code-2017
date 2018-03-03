@@ -1,6 +1,6 @@
 import Day4
 
-isValidPassphrase:: (Eq a) => [a] -> Bool
+isValidPassphrase :: (Eq a) => [a] -> Bool
 isValidPassphrase [] = True
 isValidPassphrase (x:xs) = not (x `elem` xs) && isValidPassphrase xs
 
