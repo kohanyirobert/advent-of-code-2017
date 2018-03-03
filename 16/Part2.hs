@@ -7,4 +7,4 @@ main = do
   let variations = findProgramVariations programs moves
   let size = length variations
   let remainder = 1000000000 `mod` size
-  print $ variations !! remainder
+  putStrLn $ variations !! remainder
